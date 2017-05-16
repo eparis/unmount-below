@@ -27,28 +27,39 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	_ = syscall.Unmount
+const (
+	dryRunVar = "dry-run"
 )
 
-func run(_ *cobra.Command, args []string) error {
+var (
+	_      = syscall.Unmount
+	dryRun = true
+)
+
+func run(cmd *cobra.Command, args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("unable to determine path")
 	}
 	path := args[0]
 
-	for {
-		longestBelow, err := mounts.LongestMountUnder(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				break
-			}
-			return err
+	mnts, err := mounts.MountsUnder(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("No mounts found under: %s\n", path)
+			return nil
 		}
-		fmt.Printf("Unmounting: %q\n", longestBelow)
-		// err := syscall.Unmount(longestBelow, 0)
-		if err != nil {
-			return err
+		return err
+	}
+	for _, mnt := range mnts {
+		t := mnt.Target()
+		if !dryRun {
+			fmt.Printf("Unmounting: %s\n", t)
+			//err = syscall.Unmount(longestBelow, 0)
+			if err != nil {
+				return err
+			}
+		} else {
+			fmt.Printf("Would unmount, but --dry-run=true: %s\n", t)
 		}
 	}
 	return nil
@@ -60,5 +71,6 @@ func main() {
 		Short: "A program to convert blunderbuss.yaml",
 		RunE:  run,
 	}
+	root.Flags().BoolVar(&dryRun, "dry-run", dryRun, "If we should do an unmount of print what we would unmount")
 	root.Execute()
 }

@@ -32,6 +32,10 @@ type Mount struct {
 
 type Mounts []Mount
 
+func (mnt Mount) Target() string {
+	return mnt.target
+}
+
 func (mnts Mounts) Len() int      { return len(mnts) }
 func (mnts Mounts) Swap(i, j int) { mnts[i], mnts[j] = mnts[j], mnts[i] }
 func (mnts Mounts) Less(i, j int) bool {
@@ -40,17 +44,22 @@ func (mnts Mounts) Less(i, j int) bool {
 
 	iSlashes := len(slashRegexp.FindAllStringIndex(iPath, -1))
 	jSlashes := len(slashRegexp.FindAllStringIndex(jPath, -1))
-	if iSlashes < jSlashes {
+	if iSlashes > jSlashes {
 		return true
-	} else if iSlashes > jSlashes {
+	} else if iSlashes < jSlashes {
 		return false
 	}
 
-	return iPath < jPath
+	return iPath > jPath
 }
 
-func (mnts Mounts) mountsUnder(path string) (Mounts, error) {
-	path, err := filepath.Abs(path)
+func MountsUnder(path string) (Mounts, error) {
+	mnts, err := parseMounts()
+	if err != nil {
+		return nil, err
+	}
+
+	path, err = filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
@@ -61,24 +70,8 @@ func (mnts Mounts) mountsUnder(path string) (Mounts, error) {
 			out = append(out, mnt)
 		}
 	}
+	sort.Sort(out)
 	return out, err
-}
-
-func LongestMountUnder(path string) (string, error) {
-	mnts, err := parseMounts()
-	if err != nil {
-		return "", err
-	}
-
-	mntsUnder, err := mnts.mountsUnder(path)
-	if err != nil {
-		return "", err
-	}
-	if len(mntsUnder) == 0 {
-		return "", os.ErrNotExist
-	}
-	sort.Sort(mntsUnder)
-	return mntsUnder[len(mntsUnder)-1].target, nil
 }
 
 func parseLine(in string) (Mount, error) {
