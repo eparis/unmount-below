@@ -54,7 +54,7 @@ func run(cmd *cobra.Command, args []string) error {
 		t := mnt.Target()
 		if !dryRun {
 			fmt.Printf("Unmounting: %s\n", t)
-			//err = syscall.Unmount(longestBelow, 0)
+			err = syscall.Unmount(t, 0)
 			if err != nil {
 				return err
 			}
